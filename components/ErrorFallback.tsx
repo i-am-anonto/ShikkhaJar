@@ -7,6 +7,7 @@ import {
   ScrollView,
   Text,
   Modal,
+  Image,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { ThemedView } from "@/components/ThemedView";
@@ -58,12 +59,17 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       ) : null}
 
       <View style={styles.content}>
+        <Image
+          source={require("../assets/images/icon.png")}
+          style={styles.icon}
+          resizeMode="contain"
+        />
         <ThemedText type="h1" style={styles.title}>
-          Something went wrong
+          Oops! ShikkhaJar needs a refresh
         </ThemedText>
 
         <ThemedText type="body" style={styles.message}>
-          Please reload the app to continue.
+          Something unexpected happened. Let's get you back on track!
         </ThemedText>
 
         <Pressable
@@ -71,17 +77,18 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           style={({ pressed }) => [
             styles.button,
             {
-              backgroundColor: theme.link,
+              backgroundColor: theme.primary,
               opacity: pressed ? 0.9 : 1,
               transform: [{ scale: pressed ? 0.98 : 1 }],
             },
           ]}
         >
+          <Feather name="refresh-cw" size={20} color="#FFFFFF" style={styles.buttonIcon} />
           <ThemedText
             type="body"
             style={[styles.buttonText, { color: theme.buttonText }]}
           >
-            Try Again
+            Restart ShikkhaJar
           </ThemedText>
         </Pressable>
       </View>
@@ -159,14 +166,18 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 600,
   },
+  icon: {
+    width: 80,
+    height: 80,
+    marginBottom: Spacing.lg,
+    borderRadius: 16,
+  },
   title: {
     textAlign: "center",
-    lineHeight: 40,
   },
   message: {
     textAlign: "center",
     opacity: 0.7,
-    lineHeight: 24,
   },
   topButton: {
     position: "absolute",
@@ -181,18 +192,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   button: {
+    flexDirection: "row",
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing["2xl"],
     minWidth: 200,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.lg,
+  },
+  buttonIcon: {
+    marginRight: Spacing.sm,
   },
   buttonText: {
     fontWeight: "600",
@@ -240,7 +250,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    lineHeight: 18,
     width: "100%",
   },
 });

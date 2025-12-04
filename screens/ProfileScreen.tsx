@@ -1,194 +1,291 @@
-import { useState } from "react";
-import { StyleSheet, View, TextInput } from "react-native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React, { useState } from "react";
+import { View, StyleSheet, Pressable, Image, Alert, Platform } from "react-native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
-import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Typography } from "@/constants/theme";
-import Spacer from "@/components/Spacer";
-import type { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useData } from "@/context/DataContext";
+import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
-type ProfileScreenProps = {
-  navigation: NativeStackNavigationProp<ProfileStackParamList, "Profile">;
-};
+export default function ProfileScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const { theme } = useTheme();
+  const { user, logout } = useAuth();
+  const { t } = useLanguage();
+  const { segments, sessions, attendance } = useData();
 
-export default function ProfileScreen({ navigation }: ProfileScreenProps) {
-  const { theme, isDark } = useTheme();
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleSubmit = () => {
-    console.log("Form submitted:", { name, email, password });
+  const handleSettings = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    navigation.navigate("Settings");
   };
 
-  const inputStyle = [
-    styles.input,
-    {
-      backgroundColor: theme.backgroundDefault,
-      color: theme.text,
-    },
-  ];
+  const handleLogout = () => {
+    Alert.alert(t("logout"), t("logoutConfirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("logout"),
+        style: "destructive",
+        onPress: async () => {
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          await logout();
+        },
+      },
+    ]);
+  };
+
+  const getRoleBadgeColor = () => {
+    switch (user?.role) {
+      case "parent":
+        return theme.primary;
+      case "student":
+        return theme.secondary;
+      case "tutor":
+        return "#9C27B0";
+      default:
+        return theme.primary;
+    }
+  };
+
+  const getRoleLabel = () => {
+    switch (user?.role) {
+      case "parent":
+        return t("parent");
+      case "student":
+        return t("student");
+      case "tutor":
+        return t("tutor");
+      default:
+        return "";
+    }
+  };
+
+  const totalSessions = sessions.reduce((sum, s) => sum + s.classesTaken, 0);
+  const currentMonthSessions = attendance.filter((a) => {
+    const date = new Date(a.date);
+    const now = new Date();
+    return (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear() &&
+      (a.status === "present" || a.status === "makeup")
+    );
+  }).length;
 
   return (
-    <ScreenKeyboardAwareScrollView>
-      <View style={styles.section}>
-        <ThemedText type="h1">Heading 1</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          32px • Bold
+    <ScreenScrollView>
+      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.header}>
+        <View style={styles.headerTop}>
+          <ThemedText type="h2">{t("profile")}</ThemedText>
+          <Pressable
+            onPress={handleSettings}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Feather name="settings" size={22} color={theme.text} />
+          </Pressable>
+        </View>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.profileCard}>
+        <View style={[styles.avatar, { backgroundColor: theme.primary + "20" }]}>
+          <ThemedText type="h1" style={{ color: theme.primary }}>
+            {user?.name?.charAt(0).toUpperCase() || "U"}
+          </ThemedText>
+        </View>
+        <ThemedText type="h3" style={styles.userName}>
+          {user?.name}
         </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h2">Heading 2</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          28px • Bold
+        <View style={[styles.roleBadge, { backgroundColor: getRoleBadgeColor() + "20" }]}>
+          <ThemedText type="small" style={{ color: getRoleBadgeColor(), fontWeight: "600" }}>
+            {getRoleLabel()}
+          </ThemedText>
+        </View>
+        <ThemedText type="small" style={[styles.phone, { color: theme.textSecondary }]}>
+          +880 {user?.phone}
         </ThemedText>
-      </View>
+      </Animated.View>
 
-      <View style={styles.section}>
-        <ThemedText type="h3">Heading 3</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          24px • Semi-Bold
-        </ThemedText>
-      </View>
+      <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.statsRow}>
+        <View style={[styles.statCard, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="h2" style={{ color: theme.primary }}>
+            {segments.length}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {user?.role === "tutor" ? "Students" : "Tutors"}
+          </ThemedText>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="h2" style={{ color: theme.secondary }}>
+            {currentMonthSessions}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {t("thisMonth")}
+          </ThemedText>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="h2" style={{ color: theme.warning }}>
+            {totalSessions}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Total
+          </ThemedText>
+        </View>
+      </Animated.View>
 
-      <View style={styles.section}>
-        <ThemedText type="h4">Heading 4</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          20px • Semi-Bold
-        </ThemedText>
-      </View>
+      <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.menuSection}>
+        <Pressable
+          onPress={handleSettings}
+          style={({ pressed }) => [
+            styles.menuItem,
+            { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <View style={styles.menuItemLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: theme.primary + "20" }]}>
+              <Feather name="settings" size={18} color={theme.primary} />
+            </View>
+            <ThemedText type="body">{t("settings")}</ThemedText>
+          </View>
+          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+        </Pressable>
 
-      <View style={styles.section}>
-        <ThemedText type="body">
-          Body text - This is the default text style for paragraphs and general
-          content.
-        </ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          16px • Regular
-        </ThemedText>
-      </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.menuItem,
+            { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <View style={styles.menuItemLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: theme.secondary + "20" }]}>
+              <Feather name="globe" size={18} color={theme.secondary} />
+            </View>
+            <ThemedText type="body">{t("language")}</ThemedText>
+          </View>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {user?.language === "bn" ? "বাংলা" : "English"}
+          </ThemedText>
+        </Pressable>
 
-      <View style={styles.section}>
-        <ThemedText type="small">
-          Small text - Used for captions, labels, and secondary information.
-        </ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          14px • Regular
-        </ThemedText>
-      </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.menuItem,
+            { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <View style={styles.menuItemLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: theme.warning + "20" }]}>
+              <Feather name="help-circle" size={18} color={theme.warning} />
+            </View>
+            <ThemedText type="body">Help & Support</ThemedText>
+          </View>
+          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+        </Pressable>
+      </Animated.View>
 
-      <View style={styles.section}>
-        <ThemedText type="link">Link text - Interactive elements</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          16px • Regular • Colored
-        </ThemedText>
-      </View>
-
-      <Spacer height={Spacing["4xl"]} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Name
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter your name"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          autoCapitalize="words"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Email
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="your.email@example.com"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Password
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter a password"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          secureTextEntry
-          autoCapitalize="none"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <Button onPress={handleSubmit}>Submit Form</Button>
-
-      <Spacer height={Spacing["2xl"]} />
-
-      <ThemedText type="h3" style={styles.sectionTitle}>
-        Testing
-      </ThemedText>
-      <Spacer height={Spacing.md} />
-      <Button
-        onPress={() => navigation.navigate("Crash")}
-        style={styles.crashButton}
-      >
-        Crash App
-      </Button>
-    </ScreenKeyboardAwareScrollView>
+      <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.logoutSection}>
+        <Button
+          onPress={handleLogout}
+          style={[styles.logoutButton, { backgroundColor: theme.error }]}
+        >
+          {t("logout")}
+        </Button>
+      </Animated.View>
+    </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: Spacing["3xl"],
+  header: {
+    marginBottom: Spacing.xl,
   },
-  meta: {
-    opacity: 0.5,
-    marginTop: Spacing.sm,
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  fieldContainer: {
-    width: "100%",
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  label: {
+  profileCard: {
+    alignItems: "center",
+    marginBottom: Spacing["2xl"],
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
+  },
+  userName: {
     marginBottom: Spacing.sm,
-    fontWeight: "600",
-    opacity: 0.8,
   },
-  input: {
-    height: Spacing.inputHeight,
-    borderWidth: 0,
+  roleBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    marginBottom: Spacing.sm,
+  },
+  phone: {
+    marginTop: Spacing.xs,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginBottom: Spacing["2xl"],
+  },
+  statCard: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.lg,
-    fontSize: Typography.body.fontSize,
   },
-  sectionTitle: {
+  menuSection: {
+    gap: Spacing.sm,
+    marginBottom: Spacing["2xl"],
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+  },
+  menuItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutSection: {
     marginTop: Spacing.xl,
   },
-  crashButton: {
-    backgroundColor: "#FF3B30",
+  logoutButton: {
+    width: "100%",
   },
 });
