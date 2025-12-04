@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, StyleSheet, Pressable, Switch, Platform } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, Pressable, Switch, Platform, Alert } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -9,7 +9,13 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useData } from "@/context/DataContext";
 import { Spacing, BorderRadius, AttendanceColors } from "@/constants/theme";
+import {
+  registerForPushNotificationsAsync,
+  scheduleSessionReminder,
+  cancelAllReminders,
+} from "@/utils/pushNotifications";
 
 const COLOR_OPTIONS = [
   "#4CAF50",
@@ -22,10 +28,14 @@ const COLOR_OPTIONS = [
   "#607D8B",
 ];
 
+const REMINDER_OPTIONS = [15, 30, 60, 120];
+
 export default function SettingsScreen() {
   const { theme, isDark } = useTheme();
   const { user, updateSettings, updateUser } = useAuth();
   const { t, language, setLanguage } = useLanguage();
+  const { segments } = useData();
+  const [isSettingUpNotifications, setIsSettingUpNotifications] = useState(false);
 
   const handleToggleSound = () => {
     if (Platform.OS !== "web") {
@@ -53,6 +63,74 @@ export default function SettingsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     setLanguage(language === "en" ? "bn" : "en");
+  };
+
+  const handleTogglePushNotifications = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    if (!user?.settings.pushNotificationsEnabled) {
+      setIsSettingUpNotifications(true);
+      try {
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          await updateSettings({ pushNotificationsEnabled: true });
+          await scheduleAllReminders();
+        } else {
+          if (Platform.OS !== "web") {
+            Alert.alert(
+              t("notifications"),
+              t("notificationPermissionDenied")
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error setting up notifications:", error);
+      } finally {
+        setIsSettingUpNotifications(false);
+      }
+    } else {
+      await cancelAllReminders();
+      await updateSettings({ pushNotificationsEnabled: false });
+    }
+  };
+
+  const handleToggleSessionReminders = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    const newValue = !user?.settings.sessionReminders;
+    await updateSettings({ sessionReminders: newValue });
+
+    if (newValue && user?.settings.pushNotificationsEnabled) {
+      await scheduleAllReminders();
+    } else {
+      await cancelAllReminders();
+    }
+  };
+
+  const handleReminderTimeChange = async (minutes: number) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    await updateSettings({ reminderMinutesBefore: minutes });
+
+    if (user?.settings.pushNotificationsEnabled && user?.settings.sessionReminders) {
+      await scheduleAllReminders();
+    }
+  };
+
+  const scheduleAllReminders = async () => {
+    const minutesBefore = user?.settings.reminderMinutesBefore ?? 30;
+    
+    for (const segment of segments) {
+      const title = t("sessionReminder");
+      const body = `${segment.subject} ${t("with")} ${segment.partnerName} ${t("inMinutes").replace("{minutes}", String(minutesBefore))}`;
+      await scheduleSessionReminder(segment, minutesBefore, title, body);
+    }
   };
 
   return (
@@ -124,6 +202,88 @@ export default function SettingsScreen() {
 
       <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.section}>
         <ThemedText type="h4" style={styles.sectionTitle}>
+          {t("notifications")}
+        </ThemedText>
+        <View style={styles.toggleList}>
+          <View style={[styles.toggleItem, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.toggleLeft}>
+              <Feather name="bell" size={20} color={theme.primary} />
+              <View>
+                <ThemedText type="body">{t("pushNotifications")}</ThemedText>
+                {Platform.OS === "web" ? (
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    {t("availableOnMobile")}
+                  </ThemedText>
+                ) : null}
+              </View>
+            </View>
+            <Switch
+              value={user?.settings.pushNotificationsEnabled ?? false}
+              onValueChange={handleTogglePushNotifications}
+              disabled={Platform.OS === "web" || isSettingUpNotifications}
+              trackColor={{ false: theme.border, true: theme.primary + "50" }}
+              thumbColor={user?.settings.pushNotificationsEnabled ? theme.primary : theme.textSecondary}
+            />
+          </View>
+
+          {user?.settings.pushNotificationsEnabled ? (
+            <>
+              <View style={[styles.toggleItem, { backgroundColor: theme.backgroundDefault }]}>
+                <View style={styles.toggleLeft}>
+                  <Feather name="clock" size={20} color={theme.secondary} />
+                  <ThemedText type="body">{t("sessionReminders")}</ThemedText>
+                </View>
+                <Switch
+                  value={user?.settings.sessionReminders ?? true}
+                  onValueChange={handleToggleSessionReminders}
+                  trackColor={{ false: theme.border, true: theme.secondary + "50" }}
+                  thumbColor={user?.settings.sessionReminders ? theme.secondary : theme.textSecondary}
+                />
+              </View>
+
+              {user?.settings.sessionReminders ? (
+                <View style={[styles.reminderTimeCard, { backgroundColor: theme.backgroundDefault }]}>
+                  <ThemedText type="body" style={styles.reminderLabel}>
+                    {t("remindBefore")}
+                  </ThemedText>
+                  <View style={styles.reminderOptions}>
+                    {REMINDER_OPTIONS.map((minutes) => (
+                      <Pressable
+                        key={minutes}
+                        onPress={() => handleReminderTimeChange(minutes)}
+                        style={[
+                          styles.reminderOption,
+                          user?.settings.reminderMinutesBefore === minutes && {
+                            backgroundColor: theme.primary,
+                          },
+                          user?.settings.reminderMinutesBefore !== minutes && {
+                            backgroundColor: theme.border + "50",
+                          },
+                        ]}
+                      >
+                        <ThemedText
+                          type="small"
+                          style={{
+                            color: user?.settings.reminderMinutesBefore === minutes
+                              ? "#FFFFFF"
+                              : theme.text,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {minutes < 60 ? `${minutes}m` : `${minutes / 60}h`}
+                        </ThemedText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </>
+          ) : null}
+        </View>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.section}>
+        <ThemedText type="h4" style={styles.sectionTitle}>
           Feedback
         </ThemedText>
         <View style={styles.toggleList}>
@@ -155,7 +315,7 @@ export default function SettingsScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.section}>
+      <Animated.View entering={FadeInDown.delay(600).duration(400)} style={styles.section}>
         <ThemedText type="h4" style={styles.sectionTitle}>
           App Info
         </ThemedText>
@@ -238,5 +398,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: Spacing.sm,
+  },
+  reminderTimeCard: {
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+  },
+  reminderLabel: {
+    marginBottom: Spacing.md,
+  },
+  reminderOptions: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  reminderOption: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
   },
 });

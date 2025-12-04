@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from "react";
 import {
   Segment,
   AttendanceRecord,
@@ -7,6 +7,10 @@ import {
   Notification,
   AttendanceStatus,
   RescheduleInfo,
+  ExamResult,
+  Referral,
+  AnalyticsData,
+  DayOfWeek,
 } from "@/constants/types";
 import { storage, generateId, formatDate } from "@/utils/storage";
 import { useAuth } from "./AuthContext";
@@ -17,6 +21,9 @@ interface DataContextType {
   payments: PaymentRecord[];
   sessions: SessionSummary[];
   notifications: Notification[];
+  examResults: ExamResult[];
+  referrals: Referral[];
+  analytics: AnalyticsData | null;
   unreadCount: number;
   isLoading: boolean;
   refreshData: () => Promise<void>;
@@ -32,6 +39,11 @@ interface DataContextType {
   addNotification: (notification: Omit<Notification, "id" | "createdAt">) => Promise<void>;
   markNotificationRead: (notificationId: string) => Promise<void>;
   clearNotifications: () => Promise<void>;
+  addExamResult: (result: Omit<ExamResult, "id" | "createdAt" | "createdBy">) => Promise<ExamResult>;
+  deleteExamResult: (resultId: string) => Promise<void>;
+  getExamResultsForSegment: (segmentId: string) => ExamResult[];
+  generateReferralCode: () => string;
+  addReferral: (refereePhone: string, refereeName?: string) => Promise<Referral>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -43,6 +55,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [examResults, setExamResults] = useState<ExamResult[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -54,23 +68,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPayments([]);
       setSessions([]);
       setNotifications([]);
+      setExamResults([]);
+      setReferrals([]);
       setIsLoading(false);
       return;
     }
 
     try {
-      const [segs, att, pay, sess, notif] = await Promise.all([
+      const [segs, att, pay, sess, notif, exams, refs] = await Promise.all([
         storage.getSegments(),
         storage.getAttendanceRecords(),
         storage.getPaymentRecords(),
         storage.getSessionSummaries(),
         storage.getNotifications(),
+        storage.getExamResults(),
+        storage.getReferrals(),
       ]);
       setSegments(segs);
       setAttendance(att);
       setPayments(pay);
       setSessions(sess);
       setNotifications(notif);
+      setExamResults(exams);
+      setReferrals(refs);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -358,6 +378,117 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setNotifications([]);
   };
 
+  const addExamResult = async (resultData: Omit<ExamResult, "id" | "createdAt" | "createdBy">): Promise<ExamResult> => {
+    if (!user) throw new Error("User not authenticated");
+    
+    const result: ExamResult = {
+      ...resultData,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      createdBy: user.id,
+    };
+    
+    await storage.addExamResult(result);
+    setExamResults((prev) => [result, ...prev]);
+    return result;
+  };
+
+  const deleteExamResult = async (resultId: string) => {
+    await storage.deleteExamResult(resultId);
+    setExamResults((prev) => prev.filter((r) => r.id !== resultId));
+  };
+
+  const getExamResultsForSegment = useCallback((segmentId: string): ExamResult[] => {
+    return examResults.filter((r) => r.segmentId === segmentId);
+  }, [examResults]);
+
+  const generateReferralCode = useCallback((): string => {
+    if (!user) return "";
+    const code = user.name.slice(0, 3).toUpperCase() + user.id.slice(-4).toUpperCase();
+    return code;
+  }, [user]);
+
+  const addReferralHandler = async (refereePhone: string, refereeName?: string): Promise<Referral> => {
+    if (!user) throw new Error("User not authenticated");
+    
+    const referral: Referral = {
+      id: generateId(),
+      referrerId: user.id,
+      refereePhone,
+      referredName: refereeName || `User-${refereePhone.slice(-4)}`,
+      status: "pending",
+      rewardClaimed: false,
+      createdAt: new Date().toISOString(),
+    };
+    
+    await storage.addReferral(referral);
+    setReferrals((prev) => [...prev, referral]);
+    return referral;
+  };
+
+  const analytics = useMemo((): AnalyticsData | null => {
+    if (attendance.length === 0) return null;
+
+    const presentAttendance = attendance.filter(
+      (a) => a.status === "present" || a.status === "makeup"
+    );
+    const totalSessions = presentAttendance.length;
+    
+    const allAttendance = attendance.filter(
+      (a) => a.status === "present" || a.status === "missed" || a.status === "makeup"
+    );
+    const completionRate = allAttendance.length > 0 
+      ? Math.round((presentAttendance.length / allAttendance.length) * 100) 
+      : 0;
+
+    const now = new Date();
+    const fourWeeksAgo = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
+    const recentAttendance = presentAttendance.filter(
+      (a) => new Date(a.date) >= fourWeeksAgo
+    );
+    const avgSessionsPerWeek = Math.round((recentAttendance.length / 4) * 10) / 10;
+
+    const dayCount: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    presentAttendance.forEach((a) => {
+      const day = new Date(a.date).getDay();
+      dayCount[day]++;
+    });
+    const mostActiveDay = Object.entries(dayCount).reduce((a, b) => 
+      b[1] > a[1] ? b : a
+    )[0] as unknown as DayOfWeek;
+
+    const weeklyTrend: number[] = [];
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const count = presentAttendance.filter((a) => {
+        const date = new Date(a.date);
+        return date >= weekStart && date < weekEnd;
+      }).length;
+      weeklyTrend.push(count);
+    }
+
+    const monthlyTrend: number[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const count = presentAttendance.filter((a) => {
+        const date = new Date(a.date);
+        return date >= monthStart && date <= monthEnd;
+      }).length;
+      monthlyTrend.push(count);
+    }
+
+    return {
+      totalSessions,
+      completionRate,
+      avgSessionsPerWeek,
+      mostActiveDay,
+      weeklyTrend,
+      monthlyTrend,
+    };
+  }, [attendance]);
+
   return (
     <DataContext.Provider
       value={{
@@ -366,6 +497,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         payments,
         sessions,
         notifications,
+        examResults,
+        referrals,
+        analytics,
         unreadCount,
         isLoading,
         refreshData,
@@ -381,6 +515,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addNotification: addNotificationHandler,
         markNotificationRead,
         clearNotifications,
+        addExamResult,
+        deleteExamResult,
+        getExamResultsForSegment,
+        generateReferralCode,
+        addReferral: addReferralHandler,
       }}
     >
       {children}

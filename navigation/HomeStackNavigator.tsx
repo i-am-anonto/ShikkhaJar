@@ -4,6 +4,7 @@ import DashboardScreen from "@/screens/DashboardScreen";
 import SegmentDetailScreen from "@/screens/SegmentDetailScreen";
 import AddSegmentScreen from "@/screens/AddSegmentScreen";
 import NotificationsScreen from "@/screens/NotificationsScreen";
+import ExamResultsScreen from "@/screens/ExamResultsScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
@@ -13,6 +14,7 @@ export type HomeStackParamList = {
   SegmentDetail: { segmentId: string };
   AddSegment: undefined;
   Notifications: undefined;
+  ExamResults: { segmentId: string };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -49,6 +51,14 @@ export default function HomeStackNavigator() {
       <Stack.Screen
         name="Notifications"
         component={NotificationsScreen}
+        options={{ 
+          headerTitle: "",
+          presentation: "modal",
+        }}
+      />
+      <Stack.Screen
+        name="ExamResults"
+        component={ExamResultsScreen}
         options={{ 
           headerTitle: "",
           presentation: "modal",

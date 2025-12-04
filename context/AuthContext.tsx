@@ -19,6 +19,9 @@ const defaultSettings: UserSettings = {
   soundEnabled: true,
   hapticEnabled: true,
   darkMode: "system",
+  pushNotificationsEnabled: false,
+  sessionReminders: true,
+  reminderMinutesBefore: 30,
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

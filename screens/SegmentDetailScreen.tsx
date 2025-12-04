@@ -228,6 +228,21 @@ export default function SegmentDetailScreen({ route, navigation }: Props) {
         </Animated.View>
       ) : null}
 
+      {user?.role === "tutor" ? (
+        <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+          <Pressable
+            onPress={() => navigation.navigate("ExamResults", { segmentId })}
+            style={[styles.examResultsButton, { backgroundColor: theme.secondary + "15" }]}
+          >
+            <Feather name="file-text" size={20} color={theme.secondary} />
+            <ThemedText type="body" style={{ color: theme.secondary, fontWeight: "600" }}>
+              {t("examResults")}
+            </ThemedText>
+            <Feather name="chevron-right" size={20} color={theme.secondary} />
+          </Pressable>
+        </Animated.View>
+      ) : null}
+
       <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.calendarSection}>
         <CalendarGrid
           currentMonth={currentMonth}
@@ -356,6 +371,15 @@ const styles = StyleSheet.create({
   },
   calendarSection: {
     marginTop: Spacing.lg,
+  },
+  examResultsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
   },
   modalOverlay: {
     flex: 1,

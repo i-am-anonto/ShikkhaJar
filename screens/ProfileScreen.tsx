@@ -30,6 +30,20 @@ export default function ProfileScreen() {
     navigation.navigate("Settings");
   };
 
+  const handleAnalytics = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    navigation.navigate("Analytics");
+  };
+
+  const handleReferral = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    navigation.navigate("Referral");
+  };
+
   const handleLogout = () => {
     Alert.alert(t("logout"), t("logoutConfirm"), [
       { text: t("cancel"), style: "cancel" },
@@ -164,6 +178,7 @@ export default function ProfileScreen() {
         </Pressable>
 
         <Pressable
+          onPress={handleAnalytics}
           style={({ pressed }) => [
             styles.menuItem,
             { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
@@ -171,13 +186,27 @@ export default function ProfileScreen() {
         >
           <View style={styles.menuItemLeft}>
             <View style={[styles.menuIcon, { backgroundColor: theme.secondary + "20" }]}>
-              <Feather name="globe" size={18} color={theme.secondary} />
+              <Feather name="bar-chart-2" size={18} color={theme.secondary} />
             </View>
-            <ThemedText type="body">{t("language")}</ThemedText>
+            <ThemedText type="body">{t("analytics")}</ThemedText>
           </View>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            {user?.language === "bn" ? "বাংলা" : "English"}
-          </ThemedText>
+          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+        </Pressable>
+
+        <Pressable
+          onPress={handleReferral}
+          style={({ pressed }) => [
+            styles.menuItem,
+            { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <View style={styles.menuItemLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: theme.success + "20" }]}>
+              <Feather name="gift" size={18} color={theme.success} />
+            </View>
+            <ThemedText type="body">{t("referralRewards")}</ThemedText>
+          </View>
+          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
         </Pressable>
 
         <Pressable
@@ -188,11 +217,13 @@ export default function ProfileScreen() {
         >
           <View style={styles.menuItemLeft}>
             <View style={[styles.menuIcon, { backgroundColor: theme.warning + "20" }]}>
-              <Feather name="help-circle" size={18} color={theme.warning} />
+              <Feather name="globe" size={18} color={theme.warning} />
             </View>
-            <ThemedText type="body">Help & Support</ThemedText>
+            <ThemedText type="body">{t("language")}</ThemedText>
           </View>
-          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {user?.language === "bn" ? "বাংলা" : "English"}
+          </ThemedText>
         </Pressable>
       </Animated.View>
 

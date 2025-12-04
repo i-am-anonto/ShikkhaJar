@@ -6,6 +6,8 @@ import {
   PaymentRecord,
   SessionSummary,
   Notification,
+  ExamResult,
+  Referral,
 } from "@/constants/types";
 
 const STORAGE_KEYS = {
@@ -16,6 +18,8 @@ const STORAGE_KEYS = {
   SESSIONS: "@shikkhajar_sessions",
   NOTIFICATIONS: "@shikkhajar_notifications",
   PENDING_SYNC: "@shikkhajar_pending_sync",
+  EXAM_RESULTS: "@shikkhajar_exam_results",
+  REFERRALS: "@shikkhajar_referrals",
 };
 
 export const storage = {
@@ -230,6 +234,69 @@ export const storage = {
       await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
     } catch (error) {
       console.error("Error clearing all data:", error);
+    }
+  },
+
+  async getExamResults(): Promise<ExamResult[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.EXAM_RESULTS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Error getting exam results:", error);
+      return [];
+    }
+  },
+
+  async addExamResult(result: ExamResult): Promise<void> {
+    try {
+      const results = await this.getExamResults();
+      results.unshift(result);
+      await AsyncStorage.setItem(STORAGE_KEYS.EXAM_RESULTS, JSON.stringify(results));
+    } catch (error) {
+      console.error("Error adding exam result:", error);
+    }
+  },
+
+  async deleteExamResult(resultId: string): Promise<void> {
+    try {
+      const results = await this.getExamResults();
+      const filtered = results.filter((r) => r.id !== resultId);
+      await AsyncStorage.setItem(STORAGE_KEYS.EXAM_RESULTS, JSON.stringify(filtered));
+    } catch (error) {
+      console.error("Error deleting exam result:", error);
+    }
+  },
+
+  async getReferrals(): Promise<Referral[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.REFERRALS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Error getting referrals:", error);
+      return [];
+    }
+  },
+
+  async addReferral(referral: Referral): Promise<void> {
+    try {
+      const referrals = await this.getReferrals();
+      referrals.push(referral);
+      await AsyncStorage.setItem(STORAGE_KEYS.REFERRALS, JSON.stringify(referrals));
+    } catch (error) {
+      console.error("Error adding referral:", error);
+    }
+  },
+
+  async updateReferral(referral: Referral): Promise<void> {
+    try {
+      const referrals = await this.getReferrals();
+      const index = referrals.findIndex((r) => r.id === referral.id);
+      if (index !== -1) {
+        referrals[index] = referral;
+        await AsyncStorage.setItem(STORAGE_KEYS.REFERRALS, JSON.stringify(referrals));
+      }
+    } catch (error) {
+      console.error("Error updating referral:", error);
     }
   },
 };

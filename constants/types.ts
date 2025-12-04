@@ -15,6 +15,9 @@ export interface UserSettings {
   soundEnabled: boolean;
   hapticEnabled: boolean;
   darkMode: "system" | "light" | "dark";
+  pushNotificationsEnabled: boolean;
+  sessionReminders: boolean;
+  reminderMinutesBefore: number;
 }
 
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -68,6 +71,42 @@ export interface ExamInfo {
   subject: string;
   notes?: string;
   resultUrl?: string;
+}
+
+export interface ExamResult {
+  id: string;
+  segmentId: string;
+  date: string;
+  subject: string;
+  marks: number;
+  totalMarks: number;
+  notes?: string;
+  imageUri?: string;
+  voiceNoteUri?: string;
+  voiceNoteDuration?: number;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface Referral {
+  id: string;
+  referrerId: string;
+  refereeId?: string;
+  refereePhone?: string;
+  referredName: string;
+  status: "pending" | "completed";
+  rewardClaimed: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface AnalyticsData {
+  totalSessions: number;
+  completionRate: number;
+  avgSessionsPerWeek: number;
+  mostActiveDay: DayOfWeek;
+  weeklyTrend: number[];
+  monthlyTrend: number[];
 }
 
 export interface PaymentRecord {
@@ -129,4 +168,10 @@ export interface PortfolioStats {
     classes: number;
     earnings: number;
   }[];
+}
+
+export interface UserWithReferral extends User {
+  referralCode: string;
+  referralCount: number;
+  referralRewards: number;
 }
