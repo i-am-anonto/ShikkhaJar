@@ -70,7 +70,14 @@ export default function SegmentDetailScreen({ route, navigation }: Props) {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleReason, setRescheduleReason] = useState("");
   const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const timeOptions = [
+    "08:00", "09:00", "10:00", "11:00", "12:00", 
+    "13:00", "14:00", "15:00", "16:00", "17:00", 
+    "18:00", "19:00", "20:00", "21:00"
+  ];
 
   const segmentAttendance = useMemo(
     () => attendance.filter((a) => a.segmentId === segmentId),
@@ -131,21 +138,40 @@ export default function SegmentDetailScreen({ route, navigation }: Props) {
   }, [segment, segmentId, markPayment, t]);
 
   const handleReschedule = useCallback(async () => {
-    if (!selectedDate || !rescheduleReason.trim()) return;
+    if (!selectedDate || !rescheduleReason.trim() || !rescheduleDate || !rescheduleTime) return;
+
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
 
     await requestReschedule(
       segmentId,
       selectedDate,
-      rescheduleDate || formatDate(new Date()),
-      "10:00",
+      rescheduleDate,
+      rescheduleTime,
       rescheduleReason
     );
 
     setShowRescheduleModal(false);
     setRescheduleReason("");
     setRescheduleDate("");
+    setRescheduleTime("");
     setSelectedDate(null);
-  }, [selectedDate, segmentId, rescheduleReason, rescheduleDate, requestReschedule]);
+  }, [selectedDate, segmentId, rescheduleReason, rescheduleDate, rescheduleTime, requestReschedule]);
+
+  const getNextWeekDates = useCallback(() => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 1; i <= 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push({
+        value: formatDate(date),
+        label: date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+      });
+    }
+    return dates;
+  }, []);
 
   if (!segment) {
     return (
@@ -273,12 +299,103 @@ export default function SegmentDetailScreen({ route, navigation }: Props) {
       >
         <View style={styles.modalOverlay}>
           <ThemedView style={styles.modalContent}>
-            <ThemedText type="h3" style={styles.modalTitle}>
-              {t("reschedule")}
-            </ThemedText>
+            <View style={styles.modalHeader}>
+              <ThemedText type="h3">{t("reschedule")}</ThemedText>
+              <Pressable onPress={() => setShowRescheduleModal(false)} hitSlop={10}>
+                <Feather name="x" size={24} color={theme.text} />
+              </Pressable>
+            </View>
+
+            {selectedDate ? (
+              <View style={[styles.originalDateBanner, { backgroundColor: AttendanceColors.rescheduled + "15" }]}>
+                <Feather name="calendar" size={16} color={AttendanceColors.rescheduled} />
+                <ThemedText type="small" style={{ color: AttendanceColors.rescheduled }}>
+                  {t("rescheduling")}: {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", { 
+                    weekday: "short", month: "short", day: "numeric" 
+                  })}
+                </ThemedText>
+              </View>
+            ) : null}
 
             <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary }]}>
-              {t("reason")}
+              {t("proposedDate")} *
+            </ThemedText>
+            <View style={styles.dateGrid}>
+              {getNextWeekDates().slice(0, 7).map((dateOption) => (
+                <Pressable
+                  key={dateOption.value}
+                  onPress={() => {
+                    if (Platform.OS !== "web") {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setRescheduleDate(dateOption.value);
+                  }}
+                  style={[
+                    styles.dateOption,
+                    { 
+                      backgroundColor: rescheduleDate === dateOption.value 
+                        ? theme.primary 
+                        : theme.backgroundDefault,
+                      borderColor: rescheduleDate === dateOption.value 
+                        ? theme.primary 
+                        : theme.border,
+                    }
+                  ]}
+                >
+                  <ThemedText 
+                    type="small" 
+                    style={{ 
+                      color: rescheduleDate === dateOption.value ? "#FFFFFF" : theme.text,
+                      textAlign: "center",
+                      fontWeight: rescheduleDate === dateOption.value ? "600" : "400"
+                    }}
+                  >
+                    {dateOption.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+
+            <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary }]}>
+              {t("proposedTime")} *
+            </ThemedText>
+            <View style={styles.timeGrid}>
+              {timeOptions.map((time) => (
+                <Pressable
+                  key={time}
+                  onPress={() => {
+                    if (Platform.OS !== "web") {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setRescheduleTime(time);
+                  }}
+                  style={[
+                    styles.timeOption,
+                    { 
+                      backgroundColor: rescheduleTime === time 
+                        ? theme.primary 
+                        : theme.backgroundDefault,
+                      borderColor: rescheduleTime === time 
+                        ? theme.primary 
+                        : theme.border,
+                    }
+                  ]}
+                >
+                  <ThemedText 
+                    type="small" 
+                    style={{ 
+                      color: rescheduleTime === time ? "#FFFFFF" : theme.text,
+                      fontWeight: rescheduleTime === time ? "600" : "400"
+                    }}
+                  >
+                    {time}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+
+            <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary }]}>
+              {t("reason")} *
             </ThemedText>
             <TextInput
               style={[
@@ -294,22 +411,23 @@ export default function SegmentDetailScreen({ route, navigation }: Props) {
               numberOfLines={3}
             />
 
-            <View style={styles.modalButtons}>
-              <Pressable
-                onPress={() => setShowRescheduleModal(false)}
-                style={[styles.modalButton, { backgroundColor: theme.backgroundDefault }]}
-              >
-                <ThemedText type="body">{t("cancel")}</ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={handleReschedule}
-                style={[styles.modalButton, { backgroundColor: theme.primary }]}
-              >
-                <ThemedText type="body" style={{ color: "#FFFFFF" }}>
-                  {t("proposeNewTime")}
-                </ThemedText>
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={handleReschedule}
+              disabled={!rescheduleDate || !rescheduleTime || !rescheduleReason.trim()}
+              style={[
+                styles.submitButton, 
+                { 
+                  backgroundColor: (rescheduleDate && rescheduleTime && rescheduleReason.trim()) 
+                    ? theme.primary 
+                    : theme.backgroundTertiary 
+                }
+              ]}
+            >
+              <Feather name="send" size={18} color="#FFFFFF" />
+              <ThemedText type="body" style={{ color: "#FFFFFF", fontWeight: "600" }}>
+                {t("proposeNewTime")}
+              </ThemedText>
+            </Pressable>
           </ThemedView>
         </View>
       </Modal>
@@ -391,12 +509,64 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "100%",
     maxWidth: 400,
+    maxHeight: "90%",
     padding: Spacing.xl,
     borderRadius: BorderRadius.lg,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
   },
   modalTitle: {
     marginBottom: Spacing.xl,
     textAlign: "center",
+  },
+  originalDateBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
+  },
+  dateGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  dateOption: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    minWidth: 80,
+  },
+  timeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  timeOption: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    minWidth: 60,
+    alignItems: "center",
+  },
+  submitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    height: Spacing.buttonHeight,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
   },
   inputLabel: {
     marginBottom: Spacing.sm,

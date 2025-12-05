@@ -58,6 +58,11 @@ export const translations = {
     accept: "Accept",
     reject: "Reject",
     pending: "Pending",
+    approved: "Approved",
+    rejected: "Rejected",
+    proposedDate: "Proposed Date",
+    proposedTime: "Proposed Time",
+    rescheduling: "Rescheduling",
     
     present: "Present",
     missed: "Missed",
@@ -111,6 +116,8 @@ export const translations = {
     
     noSegments: "No segments yet",
     addFirstSegment: "Add your first tutor segment",
+    addTutor: "Add Tutor",
+    addStudent: "Add Student",
     noNotifications: "No notifications",
     noHistory: "No completed sessions yet",
     
@@ -258,6 +265,11 @@ export const translations = {
     accept: "গ্রহণ",
     reject: "প্রত্যাখ্যান",
     pending: "অপেক্ষমান",
+    approved: "অনুমোদিত",
+    rejected: "প্রত্যাখ্যাত",
+    proposedDate: "প্রস্তাবিত তারিখ",
+    proposedTime: "প্রস্তাবিত সময়",
+    rescheduling: "পুনঃনির্ধারণ",
     
     present: "উপস্থিত",
     missed: "অনুপস্থিত",
@@ -311,6 +323,8 @@ export const translations = {
     
     noSegments: "কোন সেগমেন্ট নেই",
     addFirstSegment: "আপনার প্রথম সেগমেন্ট যোগ করুন",
+    addTutor: "টিউটর যোগ করুন",
+    addStudent: "ছাত্র যোগ করুন",
     noNotifications: "কোন বিজ্ঞপ্তি নেই",
     noHistory: "কোন সম্পূর্ণ সেশন নেই",
     

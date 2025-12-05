@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Pressable, Modal, Platform } from "react-native";
-import Animated, { SlideInDown, SlideOutDown, FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, withTiming, Easing } from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -107,8 +107,8 @@ export function DayDetailSheet({
         />
       </Pressable>
       <Animated.View
-        entering={SlideInDown.springify().damping(20)}
-        exiting={SlideOutDown.duration(200)}
+        entering={FadeIn.duration(250)}
+        exiting={FadeOut.duration(200)}
         style={[styles.sheet, { backgroundColor: theme.backgroundRoot }]}
       >
         <View style={[styles.handle, { backgroundColor: theme.border }]} />
@@ -121,13 +121,83 @@ export function DayDetailSheet({
           <View style={styles.statusContainer}>
             {getStatusBadge()}
             {record.rescheduleInfo ? (
-              <View style={styles.reasonContainer}>
-                <ThemedText type="small" style={[styles.reasonLabel, { color: theme.textSecondary }]}>
-                  {t("reason")}:
-                </ThemedText>
-                <ThemedText type="body" style={styles.reasonText}>
-                  {record.rescheduleInfo.reason}
-                </ThemedText>
+              <View style={styles.rescheduleInfoContainer}>
+                <View style={[styles.pendingBadge, { 
+                  backgroundColor: record.rescheduleInfo.status === "pending" 
+                    ? AttendanceColors.rescheduled + "20" 
+                    : record.rescheduleInfo.status === "accepted" 
+                    ? "#4CAF5020" 
+                    : "#f4433620" 
+                }]}>
+                  <Feather 
+                    name={record.rescheduleInfo.status === "pending" ? "clock" : record.rescheduleInfo.status === "accepted" ? "check-circle" : "x-circle"} 
+                    size={16} 
+                    color={record.rescheduleInfo.status === "pending" 
+                      ? AttendanceColors.rescheduled 
+                      : record.rescheduleInfo.status === "accepted" 
+                      ? "#4CAF50" 
+                      : "#f44336"} 
+                  />
+                  <ThemedText type="small" style={{ 
+                    color: record.rescheduleInfo.status === "pending" 
+                      ? AttendanceColors.rescheduled 
+                      : record.rescheduleInfo.status === "accepted" 
+                      ? "#4CAF50" 
+                      : "#f44336",
+                    fontWeight: "600" 
+                  }}>
+                    {record.rescheduleInfo.status === "pending" ? t("pending") : record.rescheduleInfo.status === "accepted" ? t("approved") : t("rejected")}
+                  </ThemedText>
+                </View>
+
+                <View style={[styles.infoRow, { backgroundColor: theme.backgroundDefault }]}>
+                  <Feather name="calendar" size={16} color={theme.textSecondary} />
+                  <View style={styles.infoContent}>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>{t("proposedDate")}</ThemedText>
+                    <ThemedText type="body" style={{ fontWeight: "600" }}>
+                      {new Date(record.rescheduleInfo.proposedDate + "T00:00:00").toLocaleDateString("en-US", { 
+                        weekday: "short", 
+                        month: "short", 
+                        day: "numeric" 
+                      })}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <View style={[styles.infoRow, { backgroundColor: theme.backgroundDefault }]}>
+                  <Feather name="clock" size={16} color={theme.textSecondary} />
+                  <View style={styles.infoContent}>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>{t("proposedTime")}</ThemedText>
+                    <ThemedText type="body" style={{ fontWeight: "600" }}>
+                      {record.rescheduleInfo.proposedTime}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <View style={[styles.infoRow, { backgroundColor: theme.backgroundDefault }]}>
+                  <Feather name="message-circle" size={16} color={theme.textSecondary} />
+                  <View style={styles.infoContent}>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>{t("reason")}</ThemedText>
+                    <ThemedText type="body" style={{ fontStyle: "italic" }}>
+                      {record.rescheduleInfo.reason}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {record.rescheduleInfo.counterProposal ? (
+                  <View style={[styles.counterProposal, { backgroundColor: theme.warning + "15", borderColor: theme.warning + "30" }]}>
+                    <ThemedText type="small" style={{ color: theme.warning, fontWeight: "600", marginBottom: Spacing.xs }}>
+                      Counter Proposal
+                    </ThemedText>
+                    <ThemedText type="body">
+                      {new Date(record.rescheduleInfo.counterProposal.date + "T00:00:00").toLocaleDateString("en-US", { 
+                        weekday: "short", 
+                        month: "short", 
+                        day: "numeric" 
+                      })} at {record.rescheduleInfo.counterProposal.time}
+                    </ThemedText>
+                  </View>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -226,6 +296,38 @@ const styles = StyleSheet.create({
   },
   reasonText: {
     fontStyle: "italic",
+  },
+  rescheduleInfoContainer: {
+    width: "100%",
+    gap: Spacing.md,
+  },
+  pendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    alignSelf: "center",
+    marginBottom: Spacing.sm,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  infoContent: {
+    flex: 1,
+    gap: 2,
+  },
+  counterProposal: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
   },
   actions: {
     gap: Spacing.md,

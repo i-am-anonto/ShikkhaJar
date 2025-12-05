@@ -195,6 +195,7 @@ export default function DashboardScreen() {
         icon="plus"
         onPress={handleAddSegment}
         color={theme.primary}
+        label={user?.role === "tutor" ? t("addStudent") : t("addTutor")}
       />
     </ScreenScrollView>
   );

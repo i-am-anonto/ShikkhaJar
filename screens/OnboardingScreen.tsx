@@ -65,6 +65,21 @@ function RoleCard({ role, title, description, icon, selected, onPress, theme }: 
     scale.value = withSpring(1);
   };
 
+  const getRoleColor = () => {
+    switch (role) {
+      case "parent":
+        return "#6B7AE8";
+      case "student":
+        return "#4CAF50";
+      case "tutor":
+        return "#FF9800";
+      default:
+        return theme.primary;
+    }
+  };
+
+  const roleColor = getRoleColor();
+
   return (
     <AnimatedPressable
       onPress={onPress}
@@ -73,8 +88,8 @@ function RoleCard({ role, title, description, icon, selected, onPress, theme }: 
       style={[
         styles.roleCard,
         {
-          backgroundColor: selected ? theme.primary : theme.backgroundDefault,
-          borderColor: selected ? theme.primary : theme.border,
+          backgroundColor: selected ? roleColor : theme.backgroundDefault,
+          borderColor: selected ? roleColor : theme.border,
         },
         animatedStyle,
       ]}
@@ -82,13 +97,17 @@ function RoleCard({ role, title, description, icon, selected, onPress, theme }: 
       <View
         style={[
           styles.roleIconContainer,
-          { backgroundColor: selected ? "rgba(255,255,255,0.2)" : theme.backgroundSecondary },
+          { 
+            backgroundColor: selected ? "rgba(255,255,255,0.25)" : roleColor + "20",
+            borderWidth: selected ? 0 : 2,
+            borderColor: roleColor + "40",
+          },
         ]}
       >
         <Feather
           name={icon}
-          size={28}
-          color={selected ? "#FFFFFF" : theme.primary}
+          size={32}
+          color={selected ? "#FFFFFF" : roleColor}
         />
       </View>
       <ThemedText
@@ -99,7 +118,7 @@ function RoleCard({ role, title, description, icon, selected, onPress, theme }: 
       </ThemedText>
       <ThemedText
         type="small"
-        style={[styles.roleDesc, { color: selected ? "rgba(255,255,255,0.8)" : theme.textSecondary }]}
+        style={[styles.roleDesc, { color: selected ? "rgba(255,255,255,0.85)" : theme.textSecondary }]}
       >
         {description}
       </ThemedText>
